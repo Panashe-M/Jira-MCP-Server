@@ -25,8 +25,29 @@ The server enables:
 Required environment variables:
 
 - `JIRA_HOST`: Your Jira instance hostname
-- `JIRA_EMAIL`: Your Jira account email
-- `JIRA_API_TOKEN`: API token from https://id.atlassian.com/manage-profile/security/api-tokens
+- `JIRA_API_TOKEN`: API token from https://id.atlassian.com/manage-profile/security/api-tokens OR Personal Access Token (PAT)
+- `JIRA_AUTH_TYPE`: Authentication type - either "basic" (default) or "bearer"
+
+**For Basic Authentication (default):**
+- `JIRA_EMAIL`: Your Jira account email (required when using basic auth)
+
+**For Personal Access Token (PAT) Authentication:**
+- Set `JIRA_AUTH_TYPE=bearer` and provide your PAT as `JIRA_API_TOKEN`
+- `JIRA_EMAIL` is not required when using PAT
+
+### Personal Access Token Setup
+
+Personal Access Tokens (PATs) are the recommended authentication method for Jira Cloud as they provide better security than API tokens. To create a PAT:
+
+1. Go to your Jira instance settings
+2. Navigate to **Personal Access Tokens** (usually under **Security** or **Account Settings**)
+3. Click **Create token**
+4. Give your token a descriptive name (e.g., "Jira MCP Server")
+5. Set appropriate scopes/permissions (typically you'll need read and write access to projects and issues)
+6. Copy the generated token and use it as your `JIRA_API_TOKEN`
+7. Set `JIRA_AUTH_TYPE=bearer` in your configuration
+
+**Note:** PATs are not available for all Jira instances. If your instance doesn't support PATs, use the basic authentication method with your regular API token.
 
 ## Available Tools
 
@@ -206,10 +227,19 @@ The server provides detailed error messages for:
 3. Configure environment variables:
    Create a `.env` file in the root directory:
 
+   **For Basic Authentication (default):**
    ```bash
    JIRA_HOST=your-instance.atlassian.net
    JIRA_EMAIL=your-email@example.com
    JIRA_API_TOKEN=your-api-token
+   JIRA_AUTH_TYPE=basic
+   ```
+
+   **For Personal Access Token (PAT) Authentication:**
+   ```bash
+   JIRA_HOST=your-instance.atlassian.net
+   JIRA_API_TOKEN=your-personal-access-token
+   JIRA_AUTH_TYPE=bearer
    ```
 
 4. Build the project:
@@ -235,6 +265,7 @@ To use this MCP server with Claude Desktop:
 
 2. Add the Jira MCP server to your configuration:
 
+   **For Basic Authentication (default):**
    ```json
    {
      "mcpServers": {
@@ -246,7 +277,27 @@ To use this MCP server with Claude Desktop:
          "env": {
            "JIRA_HOST": "your-jira-instance.atlassian.net",
            "JIRA_EMAIL": "your-email@example.com",
-           "JIRA_API_TOKEN": "your-api-token"
+           "JIRA_API_TOKEN": "your-api-token",
+           "JIRA_AUTH_TYPE": "basic"
+         }
+       }
+     }
+   }
+   ```
+
+   **For Personal Access Token (PAT) Authentication:**
+   ```json
+   {
+     "mcpServers": {
+       "jira-server": {
+         "name": "jira-server",
+         "command": "/path/to/node",
+         "args": ["/path/to/jira-server/build/index.js"],
+         "cwd": "/path/to/jira-server",
+         "env": {
+           "JIRA_HOST": "your-jira-instance.atlassian.net",
+           "JIRA_API_TOKEN": "your-personal-access-token",
+           "JIRA_AUTH_TYPE": "bearer"
          }
        }
      }
@@ -269,6 +320,7 @@ To use this Jira MCP server with Cursor:
     - For global configuration (all projects): `~/.cursor/mcp.json` in your home directory.
 3.  **Add the Jira MCP server configuration to `mcp.json`:**
 
+    **For Basic Authentication (default):**
     ```json
     {
       "mcpServers": {
@@ -281,7 +333,29 @@ To use this Jira MCP server with Cursor:
           "env": {
             "JIRA_HOST": "your-jira-instance.atlassian.net",
             "JIRA_EMAIL": "your-email@example.com", // Your Jira email
-            "JIRA_API_TOKEN": "your-api-token" // Your Jira API token
+            "JIRA_API_TOKEN": "your-api-token", // Your Jira API token
+            "JIRA_AUTH_TYPE": "basic"
+          }
+        }
+        // You can add other MCP server configurations here
+      }
+    }
+    ```
+
+    **For Personal Access Token (PAT) Authentication:**
+    ```json
+    {
+      "mcpServers": {
+        "jira-mcp-server": {
+          "command": "node", // Or provide the absolute path to your Node.js executable
+          "args": [
+            "/path/to/your/Jira-MCP-Server/build/index.js" // Absolute path to the server's built index.js
+          ],
+          "cwd": "/path/to/your/Jira-MCP-Server", // Absolute path to the Jira-MCP-Server directory
+          "env": {
+            "JIRA_HOST": "your-jira-instance.atlassian.net",
+            "JIRA_API_TOKEN": "your-personal-access-token", // Your Jira PAT
+            "JIRA_AUTH_TYPE": "bearer"
           }
         }
         // You can add other MCP server configurations here
@@ -348,10 +422,19 @@ npx -y @smithery/cli install @George5562/Jira-MCP-Server --client claude
 3. Configure environment variables:
    Create a `.env` file in the root directory:
 
+   **For Basic Authentication (default):**
    ```bash
    JIRA_HOST=your-instance.atlassian.net
    JIRA_EMAIL=your-email@example.com
    JIRA_API_TOKEN=your-api-token
+   JIRA_AUTH_TYPE=basic
+   ```
+
+   **For Personal Access Token (PAT) Authentication:**
+   ```bash
+   JIRA_HOST=your-instance.atlassian.net
+   JIRA_API_TOKEN=your-personal-access-token
+   JIRA_AUTH_TYPE=bearer
    ```
 
 4. Build the project:
