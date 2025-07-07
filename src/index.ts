@@ -81,6 +81,7 @@ const JIRA_HOST = process.env.JIRA_HOST;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
 const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 const JIRA_AUTH_TYPE = process.env.JIRA_AUTH_TYPE || "basic";
+const JIRA_API_VERSION = process.env.JIRA_API_VERSION || "3";
 
 if (!JIRA_HOST || !JIRA_API_TOKEN) {
   throw new Error(
@@ -474,7 +475,7 @@ class JiraServer {
     const jiraConfig: JiraClient.JiraApiOptions = {
       protocol: "https",
       host: JIRA_HOST as string,
-      apiVersion: "3",
+      apiVersion: JIRA_API_VERSION,
       strictSSL: true,
     };
 
@@ -772,11 +773,26 @@ class JiraServer {
               ],
             });
 
+            const issues = response.issues || [];
+            const processedIssues = issues.map((issue: any) => {
+              if (
+                issue.fields.description &&
+                typeof issue.fields.description === "object"
+              ) {
+                issue.fields.description = JSON.stringify(
+                  issue.fields.description,
+                  null,
+                  2
+                );
+              }
+              return issue;
+            });
+
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(response.issues, null, 2),
+                  text: JSON.stringify(processedIssues, null, 2),
                 },
               ],
             };
