@@ -28,6 +28,10 @@ Required environment variables:
 - `JIRA_API_TOKEN`: API token from https://id.atlassian.com/manage-profile/security/api-tokens OR Personal Access Token (PAT)
 - `JIRA_AUTH_TYPE`: Authentication type - either "basic" (default) or "bearer"
 
+Optional environment variables:
+
+- `JIRA_API_VERSION`: Jira API version to use (default: "3")
+
 **For Basic Authentication (default):**
 - `JIRA_EMAIL`: Your Jira account email (required when using basic auth)
 
