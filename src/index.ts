@@ -206,6 +206,89 @@ function convertToADF(text: string) {
             type: "paragraph",
             content: [
               {
+
+/**
+ * Parse user mentions in free text and convert to Jira Cloud ADF mention nodes.
+ * Supports formats:
+ *  - <@accountId:712020:abc-123>  (explicit accountId)
+ *  - <@email:user@example.com>    (email lookup to accountId)
+ *  - <@legacy:557058:xyz>         (legacy style, kept for backward compatibility)
+ */
+async function replaceMentionsWithADF(text: string, jira: JiraClient) {
+  if (!text) return text;
+
+  // Matches <@type:value> where type is accountId|email|legacy (default to email if @ is present)
+  const mentionRegex = /<@\s*(accountId|email|legacy)?\s*:\s*([^>]+)>/g;
+
+  const replacements: Array<{ placeholder: string; node: any }> = [];
+
+  const uniqueMatches = new Map<string, { type: string; value: string }>();
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    const raw = match[0];
+    const type = (match[1] || "email").toLowerCase();
+    const value = match[2].trim();
+    uniqueMatches.set(raw, { type, value });
+  }
+
+  // Resolve each unique mention to an accountId and displayName
+  const resolved = new Map<string, { accountId: string; text: string }>();
+  for (const [raw, { type, value }] of uniqueMatches.entries()) {
+    try {
+      if (type === "accountId" || type === "legacy") {
+        // Directly use as accountId; Jira Cloud account IDs can include a colon
+        resolved.set(raw, { accountId: value, text: "@user" });
+      } else {
+        // email -> lookup
+        const users = await jira.searchUsers({ query: value, includeActive: true, maxResults: 1 });
+        if (users && users.length > 0) {
+          resolved.set(raw, { accountId: users[0].accountId, text: `@${users[0].displayName}` });
+        }
+      }
+    } catch (e) {
+      // skip unresolved
+    }
+  }
+
+  // Build an ADF paragraph where we splice text and mention nodes
+  const parts: any[] = [];
+  let lastIndex = 0;
+  mentionRegex.lastIndex = 0;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    const start = match.index;
+    const end = mentionRegex.lastIndex;
+    const raw = match[0];
+
+    if (start > lastIndex) {
+      parts.push({ type: "text", text: text.slice(lastIndex, start) });
+    }
+
+    const res = resolved.get(raw);
+    if (res) {
+      parts.push({ type: "mention", attrs: { id: res.accountId, accessLevel: "CONTAINER" }, text: res.text });
+    } else {
+      // fallback to plain text
+      parts.push({ type: "text", text: raw });
+    }
+
+    lastIndex = end;
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: "text", text: text.slice(lastIndex) });
+  }
+
+  return {
+    version: 1,
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: parts.length ? parts : [{ type: "text", text }],
+      },
+    ],
+  };
+}
+
                 type: "text",
                 text: listItem,
               },
@@ -819,7 +902,7 @@ class JiraServer {
               updateFields.summary = args.summary;
             }
             if (args.description) {
-              updateFields.description = convertToADF(args.description);
+              updateFields.description = await replaceMentionsWithADF(args.description, this.jira);
             }
             if (args.assignee) {
               const users = await this.jira.searchUsers({
@@ -949,7 +1032,7 @@ class JiraServer {
                 summary: args.summary,
                 issuetype: { name: args.issueType },
                 description: args.description
-                  ? convertToADF(args.description)
+                  ? await replaceMentionsWithADF(args.description, this.jira)
                   : undefined,
                 assignee: { accountId: assignee },
                 labels: args.labels,
