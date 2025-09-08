@@ -80,10 +80,18 @@ interface JiraIssueType {
 const JIRA_HOST = process.env.JIRA_HOST;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
 const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
+const JIRA_AUTH_TYPE = process.env.JIRA_AUTH_TYPE || "basic";
+const JIRA_API_VERSION = process.env.JIRA_API_VERSION || "3";
 
-if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_API_TOKEN) {
+if (!JIRA_HOST || !JIRA_API_TOKEN) {
   throw new Error(
-    "Missing required environment variables: JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN are required"
+    "Missing required environment variables: JIRA_HOST and JIRA_API_TOKEN are required"
+  );
+}
+
+if (JIRA_AUTH_TYPE === "basic" && !JIRA_EMAIL) {
+  throw new Error(
+    "Missing required environment variable for basic auth: JIRA_EMAIL is required"
   );
 }
 
@@ -464,15 +472,21 @@ class JiraServer {
       }
     );
 
-    // Initialize Jira client
-    this.jira = new JiraClient({
+    const jiraConfig: JiraClient.JiraApiOptions = {
       protocol: "https",
       host: JIRA_HOST as string,
-      username: JIRA_EMAIL as string,
-      password: JIRA_API_TOKEN as string,
-      apiVersion: "3",
+      apiVersion: JIRA_API_VERSION,
       strictSSL: true,
-    });
+    };
+
+    if (JIRA_AUTH_TYPE === "bearer") {
+      jiraConfig.bearer = JIRA_API_TOKEN as string;
+    } else {
+      jiraConfig.username = JIRA_EMAIL as string;
+      jiraConfig.password = JIRA_API_TOKEN as string;
+    }
+
+    this.jira = new JiraClient(jiraConfig);
 
     this.setupToolHandlers();
 
@@ -759,11 +773,26 @@ class JiraServer {
               ],
             });
 
+            const issues = response.issues || [];
+            const processedIssues = issues.map((issue: any) => {
+              if (
+                issue.fields.description &&
+                typeof issue.fields.description === "object"
+              ) {
+                issue.fields.description = JSON.stringify(
+                  issue.fields.description,
+                  null,
+                  2
+                );
+              }
+              return issue;
+            });
+
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(response.issues, null, 2),
+                  text: JSON.stringify(processedIssues, null, 2),
                 },
               ],
             };
